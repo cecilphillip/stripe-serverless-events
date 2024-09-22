@@ -1,6 +1,9 @@
 @description('Name of the Service Bus namespace')
 param serviceBusNamespaceName string
 
+@description('Name of the assigned managed identity')
+param managedIdentityName string
+
 @description('Name of the Queue')
 param serviceBusQueueName string
 
@@ -40,6 +43,16 @@ resource serviceBusQueueRules 'Microsoft.ServiceBus/namespaces/queues/authorizat
   parent: serviceBusCheckoutQueue
   properties: {
     rights:['Listen', 'Send']
+  }
+}
+
+module managedIdentityRoleAssignment 'service-bus-role-assignment.bicep' = {
+  name: 'managedIdentityRoleAssignment'
+  scope: resourceGroup()
+  params: {
+    serviceBusName: serviceBusNamespaceName
+    principalName: managedIdentityName
+    role: 'Owner'
   }
 }
 

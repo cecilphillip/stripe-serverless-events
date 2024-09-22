@@ -26,6 +26,16 @@ module servicebusMod 'servicebus.bicep' = {
     location: rgLocation
     serviceBusQueueName: queueName
     serviceBusNamespaceName: rg.name
+    managedIdentityName: managedIdentity.outputs.identityName
+  }
+}
+
+
+module secretsVaultMod 'keyvault.bicep' = {
+  name: 'secretsVaultMod'
+  scope: rg
+  params: {
+    managedIdentityName: managedIdentity.outputs.identityName
   }
 }
 
@@ -37,15 +47,6 @@ module functionAppMod 'functionapp.bicep' = {
     serviceBusWorkerRuleName: servicebusMod.outputs.workerGlobalRuleName
     serviceBusNamespaceName: rg.name
     managedIdentityName: managedIdentity.outputs.identityName
-  }
-}
-
-module managedIdentityRoleAssignment 'service-bus-role-assignment.bicep' = {
-  name: 'managedIdentityRoleAssignment'
-  scope: rg
-  params: {
-    serviceBusName: rg.name
-    principalName: managedIdentity.outputs.identityName
-    role: 'Owner'
+    keyVaultName: secretsVaultMod.outputs.vaultName
   }
 }
