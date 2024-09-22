@@ -2,6 +2,7 @@ param storageAccountName string
 param serviceBusWorkerRuleName string
 param serviceBusNamespaceName string
 param managedIdentityName string
+param keyVaultName string
 
 var location = resourceGroup().location
 
@@ -60,6 +61,24 @@ resource serviceBusQueueRules 'Microsoft.ServiceBus/namespaces/AuthorizationRule
 
 var sbqnr = serviceBusQueueRules.listKeys().primaryConnectionString
 
+var stripeSecrets = [
+  'stripe-secret-key'
+  'stripe-webhook-secret'
+]
+
+resource sercretsVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: keyVaultName
+}
+resource stripeSecretKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
+  name: stripeSecrets[0]
+  parent: sercretsVault
+}
+
+resource stripeWebHookSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
+  name: stripeSecrets[1]
+  parent: sercretsVault
+}
+
 resource site 'Microsoft.Web/sites@2022-03-01' = {
   name: siteName
   kind: 'functionapp,linux'
@@ -99,7 +118,17 @@ resource site 'Microsoft.Web/sites@2022-03-01' = {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsights.properties.ConnectionString
         }
+        {
+          name: 'STRIPE_WEBHOOK_SECRET'
+          value: '@Microsoft.KeyVault(SecretUri=${stripeWebHookSecret.properties.secretUri})'
+        }
+        {
+          name: 'STRIPE_SECRET_KEY'
+          value: '@Microsoft.KeyVault(SecretUri=${stripeSecretKey.properties.secretUri})'
+        }
       ]
+      keyVaultReferenceIdentity: msi.id
     }
+    keyVaultReferenceIdentity: msi.id
   }
 }
