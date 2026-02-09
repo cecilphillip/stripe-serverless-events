@@ -18,15 +18,15 @@ public class StripeHookFunction(ILogger<StripeHookFunction> logger, IConfigurati
         HttpRequest req
     )
     {
-        logger.LogInformation("stripe webhook received");
         try
         {
+            logger.LogInformation("stripe webhook received");
+            
             var payload = await new StreamReader(req.Body).ReadToEndAsync();
             var webhookSecret = config.GetValue<string>("STRIPE_WEBHOOK_SECRET");
             var stripeEvent = EventUtility.ConstructEvent(
                 payload, req.Headers["Stripe-Signature"], webhookSecret);
-
-            // Do something fun
+            
             switch (stripeEvent.Type)
             {
                 case Events.CheckoutSessionCompleted when stripeEvent.Data.Object is Session
@@ -34,12 +34,15 @@ public class StripeHookFunction(ILogger<StripeHookFunction> logger, IConfigurati
                     PaymentStatus: "paid"
                 } session:
                     
+                    logger.LogInformation("Sending {EventType} {EventId} to queue", stripeEvent.Type, stripeEvent.Id);
                     return new StripeEventsHookResponse()
                     {
                         HttpResponse = new OkResult(),
                         Message = new FulfillOrder(session.Id)
                     };
             }
+            
+            logger.LogInformation("stripe webhook of type {EventType} not handled", stripeEvent.Type);
         }
         catch (StripeException ex)
         {
@@ -58,7 +61,7 @@ public class StripeHookFunction(ILogger<StripeHookFunction> logger, IConfigurati
                 HttpResponse = resp
             };
         }
-        
+       
         return new StripeEventsHookResponse()
         {
             HttpResponse = new OkResult()
@@ -71,5 +74,8 @@ public class StripeHookFunction(ILogger<StripeHookFunction> logger, IConfigurati
     {
         logger.LogInformation("Received message from checkout.completed queue {MessageId}", message.MessageId);
         var orderPayload = message.Body.ToObjectFromJson<FulfillOrder>();
+        
+        // Do something fun
+        logger.LogInformation("Checkout fulfillment for session {SessionId} processed", orderPayload.SessionId);
     }
 }
